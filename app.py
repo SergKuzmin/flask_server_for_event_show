@@ -19,24 +19,22 @@ thread = None
 thread_lock = Lock()
 
 cache: typing.Optional[pd.DataFrame] = None
-change = False
 
 
 def background_thread():
-    global change, cache
+    global cache
     while True:
         socketio.sleep(1)
-        data_to_emit = {
-            'last_15_events':
-                cache[::-1][:15].to_html(),
-            'total_peoples_in_bus':
-                cache['num_in'].sum() - cache['num_out'].sum(),
-            'length_of_table':
-                len(cache)
-        }
-        if change and len(cache) != 0:
+        if cache is not None and len(cache) != 0:
+            data_to_emit = {
+                'last_15_events':
+                    cache[::-1][:15].to_html(),
+                'total_peoples_in_bus':
+                    cache['num_in'].sum() - cache['num_out'].sum(),
+                'length_of_table':
+                    len(cache)
+            }
             socketio.emit('table', data_to_emit)
-            change = False
 
 
 @app.route('/')
@@ -46,12 +44,11 @@ def index():
 
 @app.route("/add_event", methods=['POST'])
 def add_row():
-    global cache, change
+    global cache
     request_data = request.form.to_dict()
     row_to_add = Event.serializer(request_data)
     cache = cache.append(row_to_add, ignore_index=True) \
         if cache is not None else pd.DataFrame(cache)
-    change = True
     return Response(status=200)
 
 
